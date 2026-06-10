@@ -1,0 +1,20 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Node (not used at runtime, but keep stray installs out)
+node_modules/
+
+# Wrangler / Cloudflare
+.wrangler/
+.dev.vars
+.env
+.env.*

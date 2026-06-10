@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>vbWBTC / AUSD — Borrow Rate 60-Day Projection</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#121722; --panel2:#171d2b; --line:#222a3a;
+    --txt:#e7ecf3; --mut:#8b97ab; --cyan:#36d2c4; --orange:#ff8a3d; --yellow:#f2c14e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+       line-height:1.5;padding:28px;}
+  .wrap{max-width:980px;margin:0 auto}
+  h1{font-size:21px;margin:0 0 2px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+  .sub code{background:#0d1119;padding:1px 6px;border-radius:5px;font-size:11px;color:#9fb0c8}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .lab{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .card .val{font-size:23px;font-weight:650;margin-top:4px}
+  .card .val.hot{color:var(--orange)}
+  .card .val.cool{color:var(--cyan)}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 8px;margin-bottom:22px}
+  .panel h2{font-size:15px;margin:0 0 4px}
+  .panel .note{color:var(--mut);font-size:12.5px;margin:0 0 14px}
+  .chartbox{position:relative;height:380px}
+  table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
+  th,td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td.a{color:var(--orange)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin:2px 0 14px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .callout{background:var(--panel2);border-left:3px solid var(--yellow);border-radius:8px;
+           padding:12px 16px;font-size:13px;color:#cdd6e4;margin:4px 0 0}
+  .callout b{color:var(--txt)}
+  .foot{color:var(--mut);font-size:11.5px;margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
+  @media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>vbWBTC / AUSD — Borrow-Rate Projection (next 60 days)</h1>
+  <div class="sub">Morpho Blue · Katana (chain 747474) · LLTV 86% · <code>0xbeb2…b20d</code> · snapshot 2026-06-10</div>
+
+  <div class="cards">
+    <div class="card"><div class="lab">Borrow APY now</div><div class="val hot">22.3%</div></div>
+    <div class="card"><div class="lab">Utilization</div><div class="val hot">100%</div></div>
+    <div class="card"><div class="lab">Rate at target</div><div class="val cool">5.2%</div></div>
+    <div class="card"><div class="lab">Supplied / Idle</div><div class="val">$1.06M<span style="font-size:12px;color:var(--mut)"> / $0</span></div></div>
+  </div>
+
+  <div class="panel">
+    <h2>An adaptive ramp, not a stable trend</h2>
+    <p class="note">All $1.06M is borrowed — utilization is pinned at 100%, above the 90% target. Morpho's Adaptive Curve IRM responds by pushing the rate up continuously, roughly doubling every ~5 days (3.3% → 22.3% in the last week). The line below extrapolates that mechanism forward; it isn't a forecast that the rate will sit there.</p>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--cyan)"></span>Historical (7d)</span>
+      <span><span class="dot" style="background:var(--orange)"></span>Projection — utilization stays 100%</span>
+    </div>
+    <div class="chartbox"><canvas id="chart"></canvas></div>
+    <p class="note" style="margin-top:10px">Log scale. The IRM caps rate-at-target at 200%/yr (→ 4× = 800% APR ≈ 298,000% APY), reached ~Jul 7. That ceiling is mechanical, not a prediction.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Projection table</h2>
+    <table>
+      <thead><tr><th>Date</th><th>Borrow APY (if utilization stays 100%)</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <b>Bottom line:</b> The rate climbs only while utilization stays at 100%. In practice the high rate draws deposits and forces repayment; once utilization falls back toward 90%, borrow APY snaps down to the target rate (~5%, higher the longer the squeeze lasts). Expect a spike, then reversion — watch utilization for the turn.
+  </div>
+
+  <div class="foot">
+    Method: borrow rate = 4 × rate-at-target at 100% utilization; rate-at-target grows as exp(50/yr × t) while utilization &gt; 90% target, capped at 200%/yr. Anchored to live values (rate-at-target 5.17%, borrow APY 22.32%); reproduces the current rate to within 0.03%. Educational analysis of protocol mechanics — not financial advice.
+  </div>
+</div>
+
+<script>
+// ---- live anchors ----
+const RT0 = Math.log(1 + 0.05170876714607242); // rate-at-target, continuous /yr
+const ADJ = 50, STEEP = 4, RT_MAX = 2.0;
+
+// ---- real time anchor: latest data point = the "now" of the chart ----
+const NOW_TS = 1781093099;          // 2026-06-10T12:04:59Z (most recent borrowApy reading)
+const DAY_MS = 86400e3;
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const offToDate = off => new Date(NOW_TS*1000 + off*DAY_MS);
+const dateLabel = off => { const d = offToDate(off); return MON[d.getUTCMonth()]+' '+d.getUTCDate(); };
+
+// Projection: utilization pinned at 100%
+function apyA(day){
+  const t = day/365;
+  const rt = Math.min(RT0*Math.exp(ADJ*t), RT_MAX);
+  return (Math.exp(STEEP*rt)-1)*100;
+}
+
+// historical (6h samples) — x is the REAL day-offset from NOW, derived from each
+// sample's actual timestamp, so points sit on their true dates.
+const histPts = [
+  [-6.962,3.24],[-6.712,3.26],[-6.462,3.26],[-6.212,3.29],[-5.962,3.29],[-5.712,3.31],
+  [-5.462,3.32],[-5.212,3.33],[-4.962,10.76],[-4.712,11.15],[-4.462,11.36],[-4.212,12.00],
+  [-3.962,12.41],[-3.712,12.64],[-3.462,12.88],[-3.212,13.12],[-2.962,14.26],[-2.712,14.52],
+  [-2.462,14.79],[-2.212,15.07],[-1.962,15.36],[-1.712,17.24],[-1.462,17.57],[-1.212,17.90],
+  [-0.962,19.25],[-0.712,20.01],[-0.462,20.80],[-0.212,21.31],[0,22.32]
+].map(([x,y])=>({x,y}));
+
+const aPts=[];
+for(let d=0; d<=63; d++){ aPts.push({x:d,y:apyA(d)}); }
+
+new Chart(document.getElementById('chart'),{
+  type:'line',
+  data:{datasets:[
+    {label:'Historical', data:histPts, borderColor:'#36d2c4', backgroundColor:'#36d2c4',
+     borderWidth:2.4, pointRadius:0, tension:.25},
+    {label:'Projection · utilization stays 100%', data:aPts, borderColor:'#ff8a3d', backgroundColor:'#ff8a3d',
+     borderWidth:2.4, borderDash:[6,4], pointRadius:0, tension:.15},
+  ]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'nearest', axis:'x', intersect:false},
+    scales:{
+      x:{type:'linear', min:-7, max:63, grid:{color:'#1c2434'},
+         title:{display:true,text:'Date (UTC) — split at “now” = Jun 10',color:'#8b97ab'},
+         ticks:{color:'#8b97ab', stepSize:7, maxRotation:0, autoSkip:false,
+           callback:v=> dateLabel(v)}},
+      y:{type:'logarithmic', min:3, max:400000, grid:{color:'#1c2434'},
+         title:{display:true,text:'Borrow APY (log scale)',color:'#8b97ab'},
+         ticks:{color:'#8b97ab',
+           callback:v=>{const a=[3,10,30,100,300,1000,3000,10000,30000,100000,300000];
+             return a.includes(v)? (v>=1000? (v/1000)+'k%' : v+'%') : null;}}}
+    },
+    plugins:{
+      legend:{display:false},
+      tooltip:{callbacks:{
+        title:it=>{const d=it[0].parsed.x; const dt=offToDate(d);
+          const ds=MON[dt.getUTCMonth()]+' '+dt.getUTCDate();
+          return ds+(d===0?' (now)':(d>0?'  (+'+d.toFixed(0)+'d)':'  ('+d.toFixed(0)+'d)'));},
+        label:it=>{const v=it.parsed.y; return it.dataset.label+': '+(v>=1000?(v/1000).toFixed(1)+'k%':v.toFixed(1)+'%');}
+      }}
+    }
+  }
+});
+
+// projection table
+const rows=[[0,'now'],[5,'+5d'],[10,'+10d'],[15,'+15d'],[20,'+20d'],[27,'+27d'],[30,'+30d'],[45,'+45d'],[60,'+60d']];
+const fmt=v=> v>=1000? (v/1000).toFixed(1)+'k%' : v.toFixed(0)+'%';
+document.getElementById('tbody').innerHTML = rows.map(([d,l])=>{
+  const when = `${dateLabel(d)} <span style="color:var(--mut)">· ${l}</span>`;
+  return `<tr><td>${when}</td><td class="a">${fmt(apyA(d))}</td></tr>`;
+}).join('');
+</script>
+</body>
+</html>
