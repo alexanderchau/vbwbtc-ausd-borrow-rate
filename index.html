@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>vbWBTC / AUSD — Borrow Rate 60-Day Projection</title>
+<title>vbWBTC / AUSD — Borrow Rate &amp; Liquidation Projection</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#0b0e14; --panel:#121722; --panel2:#171d2b; --line:#222a3a;
-    --txt:#e7ecf3; --mut:#8b97ab; --cyan:#36d2c4; --orange:#ff8a3d; --yellow:#f2c14e;
+    --txt:#e7ecf3; --mut:#8b97ab; --cyan:#36d2c4; --orange:#ff8a3d; --yellow:#f2c14e; --red:#ff4d4f; --green:#4ade80;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
@@ -16,53 +16,75 @@
        line-height:1.5;padding:28px;}
   .wrap{max-width:980px;margin:0 auto}
   h1{font-size:21px;margin:0 0 2px}
-  .sub{color:var(--mut);font-size:13px;margin-bottom:20px}
+  .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
   .sub code{background:#0d1119;padding:1px 6px;border-radius:5px;font-size:11px;color:#9fb0c8}
-  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+  .status{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mut);margin-bottom:20px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--line)}
+  .badge .ring{width:7px;height:7px;border-radius:50%;background:var(--mut)}
+  .badge.live{color:var(--green);border-color:#1f3a2b}.badge.live .ring{background:var(--green);box-shadow:0 0 0 0 rgba(74,222,128,.6);animation:pulse 2s infinite}
+  .badge.snap{color:var(--yellow);border-color:#3a341f}.badge.snap .ring{background:var(--yellow)}
+  .badge.err{color:var(--red);border-color:#3a1f22}.badge.err .ring{background:var(--red)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.5)}70%{box-shadow:0 0 0 6px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+  .refresh{background:none;border:1px solid var(--line);color:var(--mut);border-radius:7px;padding:3px 9px;font-size:11px;cursor:pointer}
+  .refresh:hover{color:var(--txt);border-color:var(--mut)}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
   .card .lab{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
   .card .val{font-size:23px;font-weight:650;margin-top:4px}
-  .card .val.hot{color:var(--orange)}
-  .card .val.cool{color:var(--cyan)}
+  .card .val .small{font-size:12px;color:var(--mut);font-weight:500}
+  .card .val.hot{color:var(--orange)} .card .val.cool{color:var(--cyan)}
+  .card .val.danger{color:var(--red)} .card .val.warn{color:var(--yellow)} .card .val.ok{color:var(--green)}
+  .posline{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 16px;font-size:12.5px;color:#cdd6e4;margin-bottom:22px;display:flex;gap:18px;flex-wrap:wrap}
+  .posline b{color:var(--txt)} .posline .k{color:var(--mut)}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 18px 8px;margin-bottom:22px}
   .panel h2{font-size:15px;margin:0 0 4px}
   .panel .note{color:var(--mut);font-size:12.5px;margin:0 0 14px}
-  .chartbox{position:relative;height:380px}
+  .chartbox{position:relative;height:400px}
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}
   th,td{text-align:right;padding:9px 10px;border-bottom:1px solid var(--line)}
   th:first-child,td:first-child{text-align:left}
   thead th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
-  td.a{color:var(--orange)}
+  td.a{color:var(--orange)} tr.liqrow td{color:var(--red);font-weight:600;background:#1a1216}
   .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin:2px 0 14px}
   .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .dash{display:inline-block;width:14px;height:0;border-top:2px dashed var(--red);margin-right:6px;vertical-align:middle}
   .callout{background:var(--panel2);border-left:3px solid var(--yellow);border-radius:8px;
            padding:12px 16px;font-size:13px;color:#cdd6e4;margin:4px 0 0}
   .callout b{color:var(--txt)}
   .foot{color:var(--mut);font-size:11.5px;margin-top:20px;border-top:1px solid var(--line);padding-top:12px}
+  .foot code{color:#9fb0c8}
   @media(max-width:760px){.cards{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>vbWBTC / AUSD — Borrow-Rate Projection (next 60 days)</h1>
-  <div class="sub">Morpho Blue · Katana (chain 747474) · LLTV 86% · <code>0xbeb2…b20d</code> · snapshot 2026-06-10</div>
-
-  <div class="cards">
-    <div class="card"><div class="lab">Borrow APY now</div><div class="val hot">22.3%</div></div>
-    <div class="card"><div class="lab">Utilization</div><div class="val hot">100%</div></div>
-    <div class="card"><div class="lab">Rate at target</div><div class="val cool">5.2%</div></div>
-    <div class="card"><div class="lab">Supplied / Idle</div><div class="val">$1.06M<span style="font-size:12px;color:var(--mut)"> / $0</span></div></div>
+  <h1>vbWBTC / AUSD — Borrow Rate &amp; Liquidation Projection</h1>
+  <div class="sub">Morpho Blue · Katana (chain 747474) · LLTV <span id="lltv">86%</span> · <code>0xbeb2…b20d</code> · borrower <code>0x14bC…4550</code></div>
+  <div class="status">
+    <span id="badge" class="badge"><span class="ring"></span><span id="badgetxt">Loading…</span></span>
+    <span id="asof"></span>
+    <button class="refresh" id="refreshBtn">↻ Refresh</button>
   </div>
 
+  <div class="cards">
+    <div class="card"><div class="lab">Borrow APY now</div><div class="val hot" id="c-apy">—</div></div>
+    <div class="card"><div class="lab">Utilization</div><div class="val hot" id="c-util">—</div></div>
+    <div class="card"><div class="lab">Health factor</div><div class="val" id="c-hf">—</div></div>
+    <div class="card"><div class="lab">Est. liquidation</div><div class="val danger" id="c-liq">—</div></div>
+  </div>
+
+  <div class="posline" id="posline"></div>
+
   <div class="panel">
-    <h2>An adaptive ramp, not a stable trend</h2>
-    <p class="note">All $1.06M is borrowed — utilization is pinned at 100%, above the 90% target. Morpho's Adaptive Curve IRM responds by pushing the rate up continuously, roughly doubling every ~5 days (3.3% → 22.3% in the last week). The line below extrapolates that mechanism forward; it isn't a forecast that the rate will sit there.</p>
+    <h2>An adaptive ramp toward liquidation</h2>
+    <p class="note" id="chartnote">All supplied AUSD is borrowed — utilization is pinned at 100%, above the 90% target. Morpho's Adaptive Curve IRM responds by pushing the rate up continuously while the squeeze lasts. The dashed line extrapolates that mechanism forward and marks the date the borrower's debt, compounding at this rate, would reach the 86% liquidation threshold — assuming the collateral (BTC) price stays flat.</p>
     <div class="legend">
-      <span><span class="dot" style="background:var(--cyan)"></span>Historical (7d)</span>
+      <span><span class="dot" style="background:var(--cyan)"></span>Historical borrow APY (7d)</span>
       <span><span class="dot" style="background:var(--orange)"></span>Projection — utilization stays 100%</span>
+      <span><span class="dash"></span>Projected liquidation (interest-only, price flat)</span>
     </div>
     <div class="chartbox"><canvas id="chart"></canvas></div>
-    <p class="note" style="margin-top:10px">Log scale. The IRM caps rate-at-target at 200%/yr (→ 4× = 800% APR ≈ 298,000% APY), reached ~Jul 7. That ceiling is mechanical, not a prediction.</p>
+    <p class="note" style="margin-top:10px" id="chartfoot"></p>
   </div>
 
   <div class="panel">
@@ -73,88 +95,344 @@
     </table>
   </div>
 
-  <div class="callout">
-    <b>Bottom line:</b> The rate climbs only while utilization stays at 100%. In practice the high rate draws deposits and forces repayment; once utilization falls back toward 90%, borrow APY snaps down to the target rate (~5%, higher the longer the squeeze lasts). Expect a spike, then reversion — watch utilization for the turn.
-  </div>
+  <div class="callout" id="bottomline"></div>
 
-  <div class="foot">
-    Method: borrow rate = 4 × rate-at-target at 100% utilization; rate-at-target grows as exp(50/yr × t) while utilization &gt; 90% target, capped at 200%/yr. Anchored to live values (rate-at-target 5.17%, borrow APY 22.32%); reproduces the current rate to within 0.03%. Educational analysis of protocol mechanics — not financial advice.
-  </div>
+  <div class="foot" id="foot"></div>
 </div>
 
 <script>
-// ---- live anchors ----
-const RT0 = Math.log(1 + 0.05170876714607242); // rate-at-target, continuous /yr
-const ADJ = 50, STEEP = 4, RT_MAX = 2.0;
-
-// ---- real time anchor: latest data point = the "now" of the chart ----
-const NOW_TS = 1781093099;          // 2026-06-10T12:04:59Z (most recent borrowApy reading)
-const DAY_MS = 86400e3;
+"use strict";
+// ============================ config ============================
+const CFG = {
+  endpoint: "https://blue-api.morpho.org/graphql",
+  marketKey: "0xbeb2f6ad6de1a9eead3302ad57a0180f67d127a22e53fa29bc724147b96cb20d",
+  chainId: 747474,
+  borrower: "0x14bCD9da052Cdc6fE0b9446d5a616D5b7B4d4550",
+  historyDays: 7,
+  refreshMs: 6 * 3600 * 1000,   // auto-refresh every 6h while the tab is open
+};
+const SPY = 31556952;            // seconds per year (Morpho convention)
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const offToDate = off => new Date(NOW_TS*1000 + off*DAY_MS);
-const dateLabel = off => { const d = offToDate(off); return MON[d.getUTCMonth()]+' '+d.getUTCDate(); };
 
-// Projection: utilization pinned at 100%
-function apyA(day){
-  const t = day/365;
-  const rt = Math.min(RT0*Math.exp(ADJ*t), RT_MAX);
-  return (Math.exp(STEEP*rt)-1)*100;
+// Baked-in fallback: a real snapshot, shown instantly and if the live fetch fails.
+const FALLBACK = {"fetchedAt":1781535896,"market":{"lltv":"860000000000000000","loan":{"symbol":"AUSD","decimals":6},"collateral":{"symbol":"vbWBTC","decimals":8},"borrowApy":0.4983520476606965,"apyAtTarget":0.10677111847468662,"utilization":1,"borrowAssets":1014735424345,"supplyAssets":1014735424345,"liquidityAssets":0,"price":"666642047918473373382728298354123492746","timestamp":1781535896},"position":{"healthFactor":1.2703726767526013,"priceVariationToLiquidationPrice":-0.21282941746176665,"collateral":2247334502,"borrowAssets":1014209628309,"borrowAssetsUsd":1013999.8725729827,"collateralUsd":1487091.1088187252,"timestamp":1781538212},"history6h":[[-6.962,16.91],[-6.712,17.4],[-6.462,17.73],[-6.212,18.07],[-5.962,19.61],[-5.712,20.2],[-5.462,21.11],[-5.212,21.92],[-4.962,22.6],[-4.712,23.74],[-4.462,24.2],[-4.212,25.43],[-3.962,26.66],[-3.712,27.69],[-3.462,28.57],[-3.212,29.13],[-2.962,29.71],[-2.712,30.31],[-2.462,33.36],[-2.212,34.03],[-1.962,34.72],[-1.712,37.28],[-1.462,38.05],[-1.212,38.83],[-0.962,39.64],[-0.712,40.47],[-0.462,41.33],[-0.212,42.21],[0.0,49.84]]};
+
+// ============================ data layer ============================
+const QUERY = `query($mk:String!,$user:[String!],$chain:[Int!],$s:Int!,$e:Int!){
+  markets(first:1,where:{uniqueKey_in:[$mk],chainId_in:$chain}){items{
+    lltv loanAsset{symbol decimals} collateralAsset{symbol decimals}
+    state{borrowApy apyAtTarget utilization borrowAssets supplyAssets liquidityAssets price timestamp}
+    historicalState{borrowApy(options:{startTimestamp:$s,endTimestamp:$e,interval:HOUR}){x y}}
+  }}
+  marketPositions(first:5,where:{marketUniqueKey_in:[$mk],chainId_in:$chain,userAddress_in:$user}){items{
+    healthFactor priceVariationToLiquidationPrice
+    state{collateral borrowAssets borrowAssetsUsd collateralUsd timestamp}
+  }}
+}`;
+
+async function fetchLive(){
+  const now = Math.floor(Date.now()/1000);
+  const variables = {
+    mk: CFG.marketKey, user: [CFG.borrower.toLowerCase()], chain: [CFG.chainId],
+    s: now - CFG.historyDays*86400, e: now,
+  };
+  const res = await fetch(CFG.endpoint, {
+    method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({query:QUERY, variables}),
+  });
+  if(!res.ok) throw new Error("HTTP "+res.status);
+  const json = await res.json();
+  if(json.errors) throw new Error(json.errors[0].message);
+  const m = json.data.markets.items[0];
+  if(!m) throw new Error("market not found");
+  const p = (json.data.marketPositions.items||[])[0] || null;
+  return toModel(m, p, true);
 }
 
-// historical (6h samples) — x is the REAL day-offset from NOW, derived from each
-// sample's actual timestamp, so points sit on their true dates.
-const histPts = [
-  [-6.962,3.24],[-6.712,3.26],[-6.462,3.26],[-6.212,3.29],[-5.962,3.29],[-5.712,3.31],
-  [-5.462,3.32],[-5.212,3.33],[-4.962,10.76],[-4.712,11.15],[-4.462,11.36],[-4.212,12.00],
-  [-3.962,12.41],[-3.712,12.64],[-3.462,12.88],[-3.212,13.12],[-2.962,14.26],[-2.712,14.52],
-  [-2.462,14.79],[-2.212,15.07],[-1.962,15.36],[-1.712,17.24],[-1.462,17.57],[-1.212,17.90],
-  [-0.962,19.25],[-0.712,20.01],[-0.462,20.80],[-0.212,21.31],[0,22.32]
-].map(([x,y])=>({x,y}));
+// Normalize either a live API payload or the fallback into one shape `render()` consumes.
+function toModel(m, p, isLive){
+  const stTs = m.state.timestamp;
+  const history = (m.historicalState.borrowApy||[])
+    .map(d => ({x:(d.x - stTs)/86400, y:d.y*100}))
+    .sort((a,b)=>a.x-b.x);
+  return {
+    isLive,
+    asOf: stTs,
+    lltv: Number(m.lltv)/1e18,
+    loanSym: m.loanAsset.symbol, loanDec: m.loanAsset.decimals,
+    collSym: m.collateralAsset.symbol, collDec: m.collateralAsset.decimals,
+    borrowApy: m.state.borrowApy, apyAtTarget: m.state.apyAtTarget,
+    utilization: m.state.utilization, price: m.state.price,
+    pos: p ? {
+      hf: p.healthFactor, priceVar: p.priceVariationToLiquidationPrice,
+      collateral: Number(p.state.collateral), debt: Number(p.state.borrowAssets),
+      collateralUsd: p.state.collateralUsd, debtUsd: p.state.borrowAssetsUsd,
+    } : null,
+    history,
+  };
+}
 
-const aPts=[];
-for(let d=0; d<=63; d++){ aPts.push({x:d,y:apyA(d)}); }
+function fallbackModel(){
+  const f = FALLBACK;
+  const m = {
+    lltv: f.market.lltv, loanAsset: f.market.loan, collateralAsset: f.market.collateral,
+    state: {...f.market},
+    // history6h already stored as [dayOffset, pct] relative to state ts → re-shape to {x:sec}
+    historicalState:{ borrowApy: f.history6h.map(([d,y])=>({x: f.market.timestamp + d*86400, y: y/100})) },
+  };
+  const p = { healthFactor:f.position.healthFactor, priceVariationToLiquidationPrice:f.position.priceVariationToLiquidationPrice,
+    state:{ collateral:f.position.collateral, borrowAssets:f.position.borrowAssets,
+            borrowAssetsUsd:f.position.borrowAssetsUsd, collateralUsd:f.position.collateralUsd } };
+  const model = toModel(m, p, false);
+  model.asOf = f.market.timestamp;
+  return model;
+}
 
-new Chart(document.getElementById('chart'),{
-  type:'line',
-  data:{datasets:[
-    {label:'Historical', data:histPts, borderColor:'#36d2c4', backgroundColor:'#36d2c4',
-     borderWidth:2.4, pointRadius:0, tension:.25},
-    {label:'Projection · utilization stays 100%', data:aPts, borderColor:'#ff8a3d', backgroundColor:'#ff8a3d',
-     borderWidth:2.4, borderDash:[6,4], pointRadius:0, tension:.15},
-  ]},
-  options:{
-    responsive:true, maintainAspectRatio:false,
-    interaction:{mode:'nearest', axis:'x', intersect:false},
-    scales:{
-      x:{type:'linear', min:-7, max:63, grid:{color:'#1c2434'},
-         title:{display:true,text:'Date (UTC) — split at “now” = Jun 10',color:'#8b97ab'},
-         ticks:{color:'#8b97ab', stepSize:7, maxRotation:0, autoSkip:false,
-           callback:v=> dateLabel(v)}},
-      y:{type:'logarithmic', min:3, max:400000, grid:{color:'#1c2434'},
-         title:{display:true,text:'Borrow APY (log scale)',color:'#8b97ab'},
-         ticks:{color:'#8b97ab',
-           callback:v=>{const a=[3,10,30,100,300,1000,3000,10000,30000,100000,300000];
-             return a.includes(v)? (v>=1000? (v/1000)+'k%' : v+'%') : null;}}}
-    },
-    plugins:{
-      legend:{display:false},
-      tooltip:{callbacks:{
-        title:it=>{const d=it[0].parsed.x; const dt=offToDate(d);
-          const ds=MON[dt.getUTCMonth()]+' '+dt.getUTCDate();
-          return ds+(d===0?' (now)':(d>0?'  (+'+d.toFixed(0)+'d)':'  ('+d.toFixed(0)+'d)'));},
-        label:it=>{const v=it.parsed.y; return it.dataset.label+': '+(v>=1000?(v/1000).toFixed(1)+'k%':v.toFixed(1)+'%');}
-      }}
+// ============================ rate / liquidation model ============================
+// Morpho AdaptiveCurveIRM @ 100% utilization:
+//   continuous rate-at-target grows as RT0 * exp(50 * t), capped at 200%/yr
+//   borrow rate = STEEP * rate-at-target   (curve multiplier ~4x at full utilization)
+// STEEP is anchored to live values so the projection's "now" matches the live borrow APY.
+function buildModel(d){
+  const RT0 = Math.log(1 + d.apyAtTarget);                 // continuous /yr, now
+  let STEEP = RT0 > 0 ? Math.log(1 + d.borrowApy)/RT0 : 4;  // ≈4 at 100% util
+  if(!isFinite(STEEP) || STEEP <= 0) STEEP = 4;
+  STEEP = Math.min(Math.max(STEEP, 2.5), 6);               // guard against transient data
+  const RT_MAX = 2.0, ADJ = 50;
+  const rateAt = t => STEEP * Math.min(RT0*Math.exp(ADJ*t), RT_MAX);  // continuous borrow rate /yr
+  const apyAt  = day => (Math.exp(rateAt(day/365)) - 1) * 100;        // borrow APY % at day-offset
+  const capDay = RT0>0 ? Math.log(RT_MAX/RT0)/ADJ*365 : null;          // when rate-at-target hits 200%
+  return {RT0, STEEP, RT_MAX, ADJ, rateAt, apyAt, capDay};
+}
+
+// Days until debt (compounding at the ramping rate) reaches the liquidation threshold,
+// assuming collateral price + amount stay constant. Integrate rate until ln-growth = ln(HF).
+function daysToLiq(hf, model){
+  if(!isFinite(hf)) return null;          // no debt → not at risk
+  if(hf <= 1) return 0;                   // already liquidatable
+  const lnG = Math.log(hf);
+  const dt = 3600/SPY;                    // 1-hour steps, in years
+  let acc = 0, t = 0;
+  while(acc < lnG && t < 5){ acc += model.rateAt(t)*dt; t += dt; }
+  return t < 5 ? t*365 : null;            // null ⇒ >5yr under this model (effectively "not soon")
+}
+
+// ============================ formatting ============================
+const pct  = (x,dp=1) => (x>=1000 ? (x/1000).toFixed(1)+'k%' : x.toFixed(dp)+'%');
+const usd  = x => x>=1e6 ? '$'+(x/1e6).toFixed(2)+'M' : x>=1e3 ? '$'+(x/1e3).toFixed(0)+'k' : '$'+x.toFixed(0);
+const num  = (x,dp=2) => x.toLocaleString('en-US',{maximumFractionDigits:dp});
+const dateUTC = ts => { const d=new Date(ts*1000); return MON[d.getUTCMonth()]+' '+d.getUTCDate(); };
+const dateTimeUTC = ts => { const d=new Date(ts*1000);
+  return MON[d.getUTCMonth()]+' '+d.getUTCDate()+', '+String(d.getUTCHours()).padStart(2,'0')+':'+String(d.getUTCMinutes()).padStart(2,'0')+' UTC'; };
+function relTime(sec){ const s=Math.max(0,sec);
+  if(s<3600) return Math.round(s/60)+'m ago';
+  if(s<86400) return Math.round(s/3600)+'h ago';
+  return Math.round(s/86400)+'d ago'; }
+function humanDays(d){
+  if(d==null) return '—';
+  if(d<1) return Math.round(d*24)+'h';
+  if(d<60) return Math.round(d)+'d';
+  return (d/30.44).toFixed(1)+'mo';
+}
+
+// ============================ rendering ============================
+let chart = null;
+
+function setBadge(kind, text){
+  const b = document.getElementById('badge');
+  b.className = 'badge '+kind;
+  document.getElementById('badgetxt').textContent = text;
+}
+
+function render(d){
+  const m = buildModel(d);
+  const lltvPct = d.lltv*100;
+  document.getElementById('lltv').textContent = pct(lltvPct,0);
+
+  // status line
+  setBadge(d.isLive ? 'live' : 'snap', d.isLive ? 'Live' : 'Snapshot');
+  document.getElementById('asof').textContent =
+    'Data as of '+dateTimeUTC(d.asOf)+' · '+relTime(Math.floor(Date.now()/1000)-d.asOf);
+
+  // cards
+  document.getElementById('c-apy').innerHTML = pct(d.borrowApy*100);
+  document.getElementById('c-util').innerHTML = pct(d.utilization*100,0);
+
+  const hfEl = document.getElementById('c-hf');
+  const liqEl = document.getElementById('c-liq');
+  if(d.pos && isFinite(d.pos.hf)){
+    const hf = d.pos.hf;
+    hfEl.className = 'val ' + (hf<1 ? 'danger' : hf<1.1 ? 'danger' : hf<1.35 ? 'warn' : 'ok');
+    hfEl.textContent = hf.toFixed(3);
+    const dl = daysToLiq(hf, m);
+    if(dl===0){ liqEl.innerHTML = 'now <span class="small">(HF&lt;1)</span>'; }
+    else if(dl==null){ liqEl.className='val ok'; liqEl.innerHTML = '&gt;5y <span class="small">at this rate</span>'; }
+    else {
+      const when = d.asOf + dl*86400;
+      liqEl.className = 'val ' + (dl<14 ? 'danger' : dl<45 ? 'warn' : 'cool');
+      liqEl.innerHTML = '~'+humanDays(dl)+' <span class="small">'+dateUTC(when)+'</span>';
     }
+  } else {
+    hfEl.textContent = '—'; liqEl.innerHTML = 'no debt';
   }
-});
 
-// projection table
-const rows=[[0,'now'],[5,'+5d'],[10,'+10d'],[15,'+15d'],[20,'+20d'],[27,'+27d'],[30,'+30d'],[45,'+45d'],[60,'+60d']];
-const fmt=v=> v>=1000? (v/1000).toFixed(1)+'k%' : v.toFixed(0)+'%';
-document.getElementById('tbody').innerHTML = rows.map(([d,l])=>{
-  const when = `${dateLabel(d)} <span style="color:var(--mut)">· ${l}</span>`;
-  return `<tr><td>${when}</td><td class="a">${fmt(apyA(d))}</td></tr>`;
-}).join('');
+  renderPosLine(d, m);
+  renderChart(d, m);
+  renderTable(d, m);
+  renderBottomLine(d, m);
+  renderFoot(d, m);
+}
+
+function renderPosLine(d, m){
+  const el = document.getElementById('posline');
+  if(!d.pos){ el.innerHTML = '<span class="k">No open position for this borrower in this market.</span>'; return; }
+  const p = d.pos;
+  const coll = p.collateral/10**d.collDec, debt = p.debt/10**d.loanDec;
+  const ltv = p.debtUsd/p.collateralUsd*100;
+  const dropToLiq = (1 - 1/p.hf)*100;
+  const dl = daysToLiq(p.hf, m);
+  const debtGrow = (p.hf-1)*100;
+  el.innerHTML =
+    `<span><span class="k">Collateral</span> <b>${num(coll,4)} ${d.collSym}</b> (${usd(p.collateralUsd)})</span>`+
+    `<span><span class="k">Debt</span> <b>${num(debt,0)} ${d.loanSym}</b> (${usd(p.debtUsd)})</span>`+
+    `<span><span class="k">LTV</span> <b>${ltv.toFixed(1)}%</b> / ${(d.lltv*100).toFixed(0)}%</span>`+
+    `<span><span class="k">Liquidates if</span> <b>${d.collSym} −${dropToLiq.toFixed(1)}%</b> or debt +${debtGrow.toFixed(1)}% (${humanDays(dl)} of interest)</span>`;
+}
+
+function renderChart(d, m){
+  const liqDay = d.pos && isFinite(d.pos.hf) ? daysToLiq(d.pos.hf, m) : null;
+  // x-axis: 7d history → enough forward to show the liquidation marker with margin
+  const xMax = liqDay!=null && liqDay>0 ? Math.min(365, Math.max(30, Math.ceil(liqDay*1.3)))
+             : (liqDay===0 ? 30 : 63);
+  const proj = [];
+  for(let day=0; day<=xMax; day++) proj.push({x:day, y:m.apyAt(day)});
+  // dynamic y-axis (log): top out at the nearest tick above the data, not the next power of 10,
+  // so the relatively flat history isn't squished by empty headroom.
+  const ymaxData = Math.max(...proj.map(p=>p.y), ...d.history.map(p=>p.y), 30);
+  const TICKS = [3,10,30,100,300,1000,3000,10000,30000,100000,300000,1000000,3000000];
+  const yTop = TICKS.find(v => v >= ymaxData*1.02) || 3000000;
+  const ticks = TICKS.filter(v=>v>=3 && v<=yTop);
+
+  const liqWhenLabel = (liqDay!=null && liqDay>0) ? dateUTC(d.asOf + liqDay*86400) : '';
+  const liqPlugin = {
+    id:'liqLine',
+    afterDraw(c){
+      if(liqDay==null || liqDay<=0) return;
+      const x = c.scales.x, ya = c.chartArea;
+      const px = x.getPixelForValue(liqDay);
+      if(px < ya.left-1 || px > ya.right+1) return;
+      const ctx = c.ctx; ctx.save();
+      ctx.strokeStyle = '#ff4d4f'; ctx.lineWidth = 2; ctx.setLineDash([5,4]);
+      ctx.beginPath(); ctx.moveTo(px, ya.top); ctx.lineTo(px, ya.bottom); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ff4d4f'; ctx.font = '600 12px -apple-system,BlinkMacSystemFont,sans-serif';
+      ctx.textAlign = px > (ya.left+ya.right)/2 ? 'right' : 'left';
+      const tx = px + (ctx.textAlign==='right' ? -7 : 7);
+      ctx.fillText('⚠ Liquidation', tx, ya.top + 13);
+      ctx.fillText('~'+humanDays(liqDay)+' · '+liqWhenLabel, tx, ya.top + 29);
+      ctx.restore();
+    }
+  };
+
+  const cfg = {
+    type:'line',
+    data:{datasets:[
+      {label:'Historical', data:d.history, borderColor:'#36d2c4', backgroundColor:'#36d2c4',
+       borderWidth:2.4, pointRadius:0, tension:.25},
+      {label:'Projection · utilization stays 100%', data:proj, borderColor:'#ff8a3d', backgroundColor:'#ff8a3d',
+       borderWidth:2.4, borderDash:[6,4], pointRadius:0, tension:.15},
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:false,
+      interaction:{mode:'nearest', axis:'x', intersect:false},
+      scales:{
+        x:{type:'linear', min:-CFG.historyDays, max:xMax, grid:{color:'#1c2434'},
+           title:{display:true,text:'Date (UTC) — split at "now"',color:'#8b97ab'},
+           ticks:{color:'#8b97ab', stepSize: xMax<=40?5:Math.ceil(xMax/12), maxRotation:0, autoSkip:true,
+             callback:v=> dateUTC(d.asOf + v*86400)}},
+        y:{type:'logarithmic', min:3, max:yTop, grid:{color:'#1c2434'},
+           title:{display:true,text:'Borrow APY (log scale)',color:'#8b97ab'},
+           ticks:{color:'#8b97ab', callback:v=> ticks.includes(v)? (v>=1000?(v/1000)+'k%':v+'%') : null}}
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:it=>{const day=it[0].parsed.x; const ts=d.asOf+day*86400;
+            return dateUTC(ts)+(Math.abs(day)<0.5?' (now)':(day>0?'  (+'+day.toFixed(0)+'d)':'  ('+day.toFixed(0)+'d)'));},
+          label:it=> it.dataset.label+': '+pct(it.parsed.y)
+        }}
+      }
+    },
+    plugins:[liqPlugin]
+  };
+  if(chart) chart.destroy();
+  chart = new Chart(document.getElementById('chart'), cfg);
+
+  // chart footnote
+  const foot = document.getElementById('chartfoot');
+  const capTxt = m.capDay!=null ? `The IRM caps rate-at-target at 200%/yr (reached ~${dateUTC(d.asOf+m.capDay*86400)}), so borrow APY tops out near ${pct((Math.exp(m.STEEP*m.RT_MAX)-1)*100)}. ` : '';
+  foot.textContent = 'Log scale. '+capTxt+'The red line is interest-driven liquidation only (collateral price held flat); a drop in BTC would trigger it sooner.';
+}
+
+function renderTable(d, m){
+  const liqDay = d.pos && isFinite(d.pos.hf) ? daysToLiq(d.pos.hf, m) : null;
+  const marks = [0,5,10,15,20,30,45,60];
+  const rows = marks.map(x=>({day:x, label:x===0?'now':'+'+x+'d', liq:false}));
+  if(liqDay!=null && liqDay>0){
+    rows.push({day:liqDay, label:'≈ liquidation', liq:true});
+    rows.sort((a,b)=>a.day-b.day);
+  }
+  document.getElementById('tbody').innerHTML = rows.map(r=>{
+    const ts = d.asOf + r.day*86400;
+    const when = `${dateUTC(ts)} <span style="color:var(--mut)">· ${r.label}</span>`;
+    const apy = r.liq ? `${pct(m.apyAt(r.day))} <span style="color:var(--mut)">· HF→1</span>` : pct(m.apyAt(r.day),0);
+    return `<tr class="${r.liq?'liqrow':''}"><td>${when}</td><td class="a">${apy}</td></tr>`;
+  }).join('');
+}
+
+function renderBottomLine(d, m){
+  const el = document.getElementById('bottomline');
+  if(!d.pos || !isFinite(d.pos.hf)){
+    el.innerHTML = '<b>Bottom line:</b> the borrow rate climbs only while utilization stays at 100%; once deposits arrive or borrowers repay, it snaps back toward the ~'+pct(d.apyAtTarget*100)+' target rate.';
+    return;
+  }
+  const dl = daysToLiq(d.pos.hf, m);
+  const drop = (1 - 1/d.pos.hf)*100;
+  let liqTxt;
+  if(dl===0) liqTxt = 'The position is <b>already at or below the liquidation threshold</b>.';
+  else if(dl==null) liqTxt = 'At the current rate, interest alone would take <b>over 5 years</b> to liquidate it.';
+  else liqTxt = `If utilization stays pinned at 100% and BTC is flat, interest alone reaches the 86% threshold in <b>~${humanDays(dl)}</b> (around ${dateUTC(d.asOf+dl*86400)}).`;
+  el.innerHTML = `<b>Bottom line:</b> ${liqTxt} But price is the bigger lever — a <b>${drop.toFixed(1)}% drop in BTC</b> liquidates this position instantly, regardless of the rate. The interest clock only runs while the squeeze lasts: if deposits arrive or the borrower repays, utilization falls back toward 90%, the rate snaps down toward ~${pct(d.apyAtTarget*100)}, and the date pushes out. Watch utilization and the BTC price for the turn.`;
+}
+
+function renderFoot(d, m){
+  document.getElementById('foot').innerHTML =
+    `Method: at 100% utilization, borrow rate = ${m.STEEP.toFixed(2)}× rate-at-target; rate-at-target grows as exp(50/yr × t), capped at 200%/yr — Morpho's Adaptive Curve IRM. `+
+    `Liquidation time integrates debt growth until it reaches collateral × ${(d.lltv*100).toFixed(0)}% LLTV, holding collateral price constant. Anchored to live rate-at-target ${pct(d.apyAtTarget*100)} and borrow APY ${pct(d.borrowApy*100)}. `+
+    `Data: Morpho GraphQL API, refreshed on load and every 6h. Educational analysis of protocol mechanics — not financial advice.`;
+}
+
+// ============================ orchestration ============================
+async function refresh(){
+  setBadge('', 'Updating…');
+  try{
+    const live = await fetchLive();
+    render(live);
+  }catch(e){
+    render(fallbackModel());
+    setBadge('err', 'Live fetch failed — showing snapshot');
+    document.getElementById('asof').textContent =
+      'Snapshot from '+dateTimeUTC(FALLBACK.market.timestamp)+' · '+(e&&e.message?e.message:'network error');
+  }
+}
+
+// instant paint from the embedded snapshot, then fetch live
+render(fallbackModel());
+refresh();
+document.getElementById('refreshBtn').addEventListener('click', refresh);
+setInterval(refresh, CFG.refreshMs);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) refresh(); });
 </script>
 </body>
 </html>
